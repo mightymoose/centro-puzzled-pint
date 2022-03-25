@@ -1,0 +1,48 @@
+name: Static Analysis
+on: [push]
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:11
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: centro_puzzled_pint_test
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+
+    steps:
+      - name: Checkout the Repository
+        uses: actions/checkout@v2
+
+      - name: Setup Ruby and Install Gems
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.0.3
+          bundler-cache: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v1
+        with:
+          node-version: 16.14.2
+      - name: Find the Node Package Location
+        id: yarn-cache
+        run: echo "::set-output name=dir::$(yarn cache dir)"
+      - name: Cache the Node Packages
+        uses: actions/cache@v1
+        with:
+          path: ${{ steps.yarn-cache.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-host: localhost
+      - name: Install Node Packages
+        run: yarn install --pure-lockfile
+      - name: Setup Test Database
+        env:
+          RAILS_ENV: test
+        run: bin/rails db:setup
+      - name: Run Unit Tests
+        run: bin/rails test
